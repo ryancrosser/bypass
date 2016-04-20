@@ -1,166 +1,206 @@
+import "babel-polyfill";
+
+import _ from 'lodash';
 import fs from 'fs-extra';
 import path from 'path';
-import recursive from 'recursive-readdir';
-import {argv} from 'yargs';
+import directoryTree from 'directory-tree';
 
-let processType = false;
+import cliOptions from './cli.js';
+import replacers from './replacers.js';
+import defaults from './defaults.js';
 
-if(argv.up){
-    processType = 'UP';
-}
-if(argv.down){
-    processType = 'DOWN';
-}
+let config = _.extend({}, defaults, cliOptions);
 
-let targetDirectory = __dirname;
-if(argv.dir){
-    targetDirectory = argv.dir;
-    targetDirectory = path.resolve(targetDirectory)
-}
+// create the output folder
+fs.ensureDirSync(config.outputDirectory);
 
-console.log(targetDirectory);
+process(config);
 
-let targetFile = '';
-if(argv.file){
-    targetFile = argv.file = targetFile;
-}
-let outputDirectory = 'output';
-if(argv.output){
-    outputDirectory = argv.output;
-}
-fs.ensureDirSync(outputDirectory);
- 
-let lineLength  = false;
-if(argv.lineLength){
-    lineLength = argv.lineLength;
-}
+function process() {
+    let directory = directoryTree.directoryTree(config.targetDirectory);
 
-process(processType, targetDirectory, outputDirectory, lineLength);
-
-let replacers = {
-    '"': '__DOUBLE_QUOTE__',
-    '\'': '__SINGLE_QUOTE__',
-    ';': '__SEMI_COLON__',
-    ':': '__COLON__',
-    '=': '__EQUAL_SIGN__',
-    '\\(': '__LEFT_PAREN__',
-    '\\)': '__RIGHT_PAREN__',
-    '\\[': '__LEFT_SQUARE__',
-    '\\]': '__RIGHT_SQUARE__',
-    '\\{': '__LEFT_CURLY',
-    '\\}': '__RIGHT_CURLY',
-    'return': '__RETURN__',
-    'function': '__FUNCTION__'
-};
-
-function process(processType, targetDirectory, outputDirectory, lineLength){
     // empty output directory
-    fs.emptyDirSync(path.resolve(outputDirectory));
-    getAllFileInDirectory(targetDirectory).then((files) => {
-        files.forEach((file) => {
-            fs.readFile(file, 'utf8', (err, data) => {
-                if (err) {
-                    throw Error(err);
-                }
-                let fileName = path.basename(file);
-                let fileContent = '';
-                if(processType === 'UP') {
-                    fileContent = processFileForUp(data, lineLength)
-                } else if(processType === 'DOWN'){
-                    fileContent = processFileForDown(data)
-                }
+    if (config['clean-output-dir']) {
+        fs.emptyDirSync(path.resolve(config.outputDirectory));
+    }
+    let fileList = parseDirectory(directory);
 
-                fs.writeFile(path.join(path.resolve(outputDirectory), fileName), fileContent, (err) => {
-                    if (err) {
-                        throw Error(err);
-                    }
-                });
-            });
+    if (config.processType === 'UP') {
+        // write the directory tree to the output directory
+        fs.writeFile(path.join(path.resolve(config.outputDirectory), config.manifestFile), JSON.stringify(buildManifest(fileList, config), null, 4), (err) => {
+            if (err) {
+                throw Error(err);
+            }
         });
-    }).catch((err) => {
-        throw Error(err);
+    }
+
+    processFiles(fileList, config);
+}
+
+function parseDirectory(directory) {
+    let temp = [];
+    let filePaths;
+    if (directory.children && Array.isArray(directory.children)) {
+        filePaths = recuseChildren(directory.children, temp);
+    }
+    return filePaths;
+}
+
+function buildManifest(filePaths, config) {
+    return filePaths.map((file) => {
+        return {
+            fileName: path.basename(file),
+            // filePath: file.slice(config.targetDirectory.length + 1).replace(/\\/g, config.fileDelimiter),
+            filePath: file.slice(config.targetDirectory.length + 1)
+        };
     });
 }
 
-function getAllFileInDirectory(targetDirectory){
+function parseManifest(fileList, config) {
+    let manifestPattern = new RegExp(/manifest\.\d{13}\.json/, '');
+ 
+    if (!manifestPattern.test(config.manifestFile)) {
+        manifestPattern = new RegExp(config.manifestFile);
+    }
+
+    let manifestFilePath = fileList.filter((file) => {
+        return manifestPattern.test(file);
+    });
+
+    let data = fs.readFileSync(manifestFilePath[0], 'utf8');
+
+    return JSON.parse(data).map((d) => {
+        return {
+            fileName: d.fileName,
+            filePath: path.join(config.outputDirectory, d.filePath)
+        }
+    });
+}
+
+function recuseChildren(nodeTree, holdingArr) {
+    nodeTree.forEach((node) => {
+        if (node.children) {
+            return recuseChildren(node.children, holdingArr)
+        } else {
+            holdingArr.push(path.join(config.targetDirectory, node.path));
+        }
+    });
+
+    return holdingArr; 
+}
+
+function processFiles(fileList, config) {
+    if (config.processType === 'UP') {
+        fileList.map((filePath) => {
+            let fileName = path.basename(filePath);
+            if(config.ignoreList.includes(path.extname(filePath).slice(1))){
+                // do not process file, just copy to output directory
+                fs.writeFileSync(path.join(config.outputDirectory, fileName), fs.readFileSync(filePath));
+            } else {
+                processFileForUp(filePath, config).then((data) => {
+                    let filePath = path.join(path.resolve(config.outputDirectory), fileName);
+                    writeFile(filePath, data);
+                });
+            }
+        });
+
+    } else if (config.processType === 'DOWN') {
+        let filePaths = parseManifest(fileList, config);
+        filePaths.map((fp) => {
+            if(config.ignoreList.includes(path.extname(fp.fileName).slice(1))){
+                // copy file for target to output
+                fs.ensureFileSync(fp.filePath);
+                fs.writeFileSync(path.resolve(fp.filePath), fs.readFileSync(path.join(config.targetDirectory, fp.fileName)));
+            } else {
+                fs.ensureFileSync(fp.filePath);
+                processFileForDown(path.join(config.targetDirectory, fp.fileName)).then((data) => {
+                    writeFile(fp.filePath, data);
+                });
+            }
+
+        });
+    }
+}
+
+function writeFile(filePath, fileContent) {
+    fs.writeFile(filePath, fileContent, (err) => {
+        if (err) {
+            throw Error(err);
+        }
+    });
+}
+
+function processFileForUp(filePath, config) {
     return new Promise((resolve, reject) => {
-        recursive(targetDirectory, function (err, files) {
-            if(err){
+        fs.readFile(filePath, 'utf8', (err, data) => {
+            if (err) {
                 reject(err);
             }
 
-            // Files is an array of filename
-            resolve(files);
+            // remove line breaks
+            let newData = data
+                .replace(/\r\n/g, '__BACKSLASH_R_BACKSLASH_N__')
+                .replace(/\n/g, '__BACKSLASH_N__')
+                .replace(/\r/g, '__BACKSLASH_R__');
 
+            for (let r in replacers) {
+                if (replacers.hasOwnProperty(r)) {
+                    // remove character that can throw errors
+                    let re = new RegExp(r, 'ig');
+                    newData = newData.replace(re, replacers[r]);
+                }
+            }
+            if (config['line-length']) {
+                newData = breakAtLineLength(newData, config['line-length']);
+            }
+
+            resolve(newData);
         });
     });
 }
 
-function processFileForUp(file, lineLength){
-    let newFile = file;
-    let temp = '';
-    for(let r in replacers){
-        if(replacers.hasOwnProperty(r)){
-            // remove line breaks
-            newFile = newFile.replace(/\r\n/g, '__BACKSLASH_R_BACKSLASH_N__');
-            newFile = newFile.replace(/\n/g, '__BACKSLASH_N__');
-            newFile = newFile.replace(/\r/g, '__BACKSLASH_R__');
+function breakAtLineLength(file, lineLength) {
+    let insertStr = '__GENERATED_LINE_BREAK__\n';
+    let loopCount = 1;
+    let start = 0;
+    while (start < file.length) {
+        let first = file.slice(0, start + lineLength);
+        let last = file.slice(start + lineLength);
 
-            // remove character that can throw errors
-            let re = new RegExp(r, 'ig');
-            newFile = newFile.replace(re, replacers[r]);
+        file = first + insertStr + last;
+        start = (lineLength * loopCount) + insertStr.length;
+        loopCount++;
+    }
+    return file;
+}
 
-            temp = newFile;
-            if(lineLength){
-                temp = breakAtLineLength(newFile, lineLength);
+function processFileForDown(filePath) {
+    return new Promise((resolve, reject) => {
+        fs.readFile(filePath, 'utf8', (err, data) => {
+            if (err) {
+                reject(err);
             }
-        }
-    }
 
-    return temp;
+            let newData = removeGeneratedLineBreak(data);
+            for (let r in replacers) {
+                if (replacers.hasOwnProperty(r)) {
+                    // remove character that can throw errors
+                    let re = new RegExp(replacers[r], 'g');
+                    newData = newData.replace(re, r.replace(/\\/g, ''));
+
+                    // remove line breaks
+                    newData = newData
+                        .replace(/__BACKSLASH_R_BACKSLASH_N__/g, '\r\n')
+                        .replace(/__BACKSLASH_N__/g, '\n')
+                        .replace(/__BACKSLASH_R__/g, '\r');
+                }
+            }
+
+            resolve(newData);
+        });
+    });
 }
 
-function spliceSlice(str, index, count, add) {
-    return str.slice(0, index) + (add || "") + str.slice(index + count);
-}
-
-function breakAtLineLength(file, lineLength){
-    let insertStr = '__ARBITRARY_LINE_BREAK__\n';
-
-
-    start = 0;
-    while(index < file.length){
-        file.slice(start, index) + insertStr + file.slice(index + count);
-
-
-        newFile.push(temp.splice(0, lineLength).join(''));
-        console.log(temp.length)
-
-        start = index + count + insertStr.length;
-    }
-    return newFile.join('__ARBITRARY_LINE_BREAK__\n');
-}
-
-function processFileForDown(file){
-    let newFile = file;
-    newFile = removeArbitaryLineBreak(file);
-
-    for(let r in replacers){
-        if(replacers.hasOwnProperty(r)){
-            // remove character that can throw errors
-            let re = new RegExp(replacers[r], 'g');
-            console.log(r.replace(/\\/g, ''));
-            newFile = newFile.replace(re, r.replace(/\\/g, ''));
-
-            // remove line breaks
-            newFile = newFile.replace(/__BACKSLASH_R_BACKSLASH_N__/g, '\r\n');
-            newFile = newFile.replace(/__BACKSLASH_N__/g, '\n');
-            newFile = newFile.replace(/__BACKSLASH_R__/g, '\r');
-        }
-    }
-    return newFile;
-}
-
-function removeArbitaryLineBreak(file){
-    return file.replace(/__ARBITRARY_LINE_BREAK__\n/g, '');
+function removeGeneratedLineBreak(file) {
+    return file.replace(/__GENERATED_LINE_BREAK__\n/g, '');
 }

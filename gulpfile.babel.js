@@ -1,8 +1,10 @@
 import gulp from "gulp";
 import babel from 'gulp-babel'
+import del from 'del';
 
 gulp.task('build', () => {
-    return gulp.src('src/index.js')
+    // del(['dist/**', '!dist']);
+    return gulp.src('src/**.js')
         .pipe(babel({
             presets: ['es2015']
         }))
@@ -12,7 +14,7 @@ gulp.task('build', () => {
 
 // watch, build, serve
 gulp.task('watch', () => {
-    gulp.watch('src/**', ['build']);
+    gulp.watch('src/**.*', ['build']);
 });
 
 gulp.task('default', ['build']);
