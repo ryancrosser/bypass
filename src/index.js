@@ -18,23 +18,23 @@ process(config);
 
 function process() {
     let directory = directoryTree.directoryTree(config.targetDirectory);
-
     // empty output directory
     if (config['clean-output-dir']) {
         fs.emptyDirSync(path.resolve(config.outputDirectory));
     }
     let fileList = parseDirectory(directory);
+    let manifest = buildManifest(fileList, config);
 
     if (config.processType === 'UP') {
         // write the directory tree to the output directory
-        fs.writeFile(path.join(path.resolve(config.outputDirectory), config.manifestFile), JSON.stringify(buildManifest(fileList, config), null, 4), (err) => {
+        fs.writeFile(path.join(path.resolve(config.outputDirectory), config.manifestFile), JSON.stringify(manifest, null, 4), (err) => {
             if (err) {
                 throw Error(err);
             }
         });
     }
 
-    processFiles(fileList, config);
+    processFiles(manifest, config);
 }
 
 function parseDirectory(directory) {
@@ -47,32 +47,33 @@ function parseDirectory(directory) {
 }
 
 function buildManifest(filePaths, config) {
-    return filePaths.map((file) => {
+    let pathSeparatorPattern = new RegExp('\\' + path.sep, 'g');
+    return filePaths.map((filePath) => {
         return {
-            fileName: path.basename(file),
-            // filePath: file.slice(config.targetDirectory.length + 1).replace(/\\/g, config.fileDelimiter),
-            filePath: file.slice(config.targetDirectory.length + 1)
+            fileName: path.basename(filePath),
+            filePath: filePath.slice(config.targetDirectory.length + 1),
+            filePathConverted: filePath.slice(config.targetDirectory.length + 1).replace(pathSeparatorPattern, config.fileDelimiter)
         };
     });
 }
 
-function parseManifest(fileList, config) {
+function parseManifest(manifestFile, config) {
     let manifestPattern = new RegExp(/manifest\.\d{13}\.json/, '');
- 
     if (!manifestPattern.test(config.manifestFile)) {
         manifestPattern = new RegExp(config.manifestFile);
     }
-
-    let manifestFilePath = fileList.filter((file) => {
-        return manifestPattern.test(file);
+    let manifestFilePath = manifestFile.filter((manifest) => {
+        return manifestPattern.test(manifest.fileName);
     });
+    let targetFilePath = path.join(path.resolve(config.targetDirectory), manifestFilePath[0].fileName); 
 
-    let data = fs.readFileSync(manifestFilePath[0], 'utf8');
-
-    return JSON.parse(data).map((d) => {
+    let data = fs.readFileSync(targetFilePath, 'utf8');
+    
+    return JSON.parse(data).map((d) => { 
         return {
             fileName: d.fileName,
-            filePath: path.join(config.outputDirectory, d.filePath)
+            filePath: path.join(config.outputDirectory, d.filePath),
+            filePathConverted: d.filePathConverted
         }
     });
 }
@@ -89,36 +90,37 @@ function recuseChildren(nodeTree, holdingArr) {
     return holdingArr; 
 }
 
-function processFiles(fileList, config) {
+function processFiles(manifestFile, config) {
     if (config.processType === 'UP') {
-        fileList.map((filePath) => {
-            let fileName = path.basename(filePath);
-            if(config.ignoreList.includes(path.extname(filePath).slice(1))){
+        manifestFile.map((manifest) => {
+            let targetFilePath = path.resolve(path.join(config.outputDirectory, manifest.filePathConverted));
+            if(config.ignoreList.includes(path.extname(manifest.fileName).slice(1))){
                 // do not process file, just copy to output directory
-                fs.writeFileSync(path.join(config.outputDirectory, fileName), fs.readFileSync(filePath));
-            } else {
-                processFileForUp(filePath, config).then((data) => {
-                    let filePath = path.join(path.resolve(config.outputDirectory), fileName);
-                    writeFile(filePath, data);
+                let fromFilePath = path.resolve(path.join(config.targetDirectory, manifest.filePath));
+                fs.writeFileSync(targetFilePath, fs.readFileSync(fromFilePath));
+            } else { 
+                processFileForUp(path.resolve(path.join(config.targetDirectory, manifest.filePath)), config).then((data) => {
+                    writeFile(targetFilePath, data);
                 });
             }
         });
-
     } else if (config.processType === 'DOWN') {
-        let filePaths = parseManifest(fileList, config);
+        let fileDelimiterPattern = new RegExp(config.fileDelimiter, 'g');
+        let filePaths = parseManifest(manifestFile, config);
         filePaths.map((fp) => {
+            let targetFilePath = path.join(path.resolve(config.outputDirectory), fp.filePath);
+
+            fs.ensureFileSync(targetFilePath);
             if(config.ignoreList.includes(path.extname(fp.fileName).slice(1))){
-                // copy file for target to output
-                fs.ensureFileSync(fp.filePath);
-                fs.writeFileSync(path.resolve(fp.filePath), fs.readFileSync(path.join(config.targetDirectory, fp.fileName)));
+                // do not process file, just copy to output directory
+                let fromFilePath = path.resolve(path.join(config.targetDirectory, fp.filePathConverted));
+                fs.writeFileSync(targetFilePath, fs.readFileSync(fromFilePath));
             } else {
-                fs.ensureFileSync(fp.filePath);
-                processFileForDown(path.join(config.targetDirectory, fp.fileName)).then((data) => {
-                    writeFile(fp.filePath, data);
+                processFileForDown(path.join(config.targetDirectory, fp.filePathConverted)).then((data) => {
+                    writeFile(targetFilePath, data);
                 });
             }
-
-        });
+        }); 
     }
 }
 
@@ -135,26 +137,26 @@ function processFileForUp(filePath, config) {
         fs.readFile(filePath, 'utf8', (err, data) => {
             if (err) {
                 reject(err);
-            }
+            } else {
+                // remove line breaks
+                let newData = data
+                    .replace(/\r\n/g, '__BACKSLASH_R_BACKSLASH_N__')
+                    .replace(/\n/g, '__BACKSLASH_N__')
+                    .replace(/\r/g, '__BACKSLASH_R__');
 
-            // remove line breaks
-            let newData = data
-                .replace(/\r\n/g, '__BACKSLASH_R_BACKSLASH_N__')
-                .replace(/\n/g, '__BACKSLASH_N__')
-                .replace(/\r/g, '__BACKSLASH_R__');
-
-            for (let r in replacers) {
-                if (replacers.hasOwnProperty(r)) {
-                    // remove character that can throw errors
-                    let re = new RegExp(r, 'ig');
-                    newData = newData.replace(re, replacers[r]);
+                for (let r in replacers) {
+                    if (replacers.hasOwnProperty(r)) {
+                        // remove character that can throw errors
+                        let re = new RegExp(r, 'ig');
+                        newData = newData.replace(re, replacers[r]);
+                    }
                 }
-            }
-            if (config['line-length']) {
-                newData = breakAtLineLength(newData, config['line-length']);
-            }
+                if (config['line-length']) {
+                    newData = breakAtLineLength(newData, config['line-length']);
+                }
 
-            resolve(newData);
+                resolve(newData);
+            }             
         });
     });
 }
