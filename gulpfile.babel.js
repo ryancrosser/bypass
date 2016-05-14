@@ -13,7 +13,8 @@ gulp.task('build', () => {
 
 
 // watch, build, serve
-gulp.task('watch', () => {
+gulp.task('watch', ['build'], () => {
+
     gulp.watch('src/**.*', ['build']);
 });
 

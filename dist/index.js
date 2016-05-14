@@ -6,6 +6,10 @@ var _lodash = require('lodash');
 
 var _lodash2 = _interopRequireDefault(_lodash);
 
+var _directoryTree = require('directory-tree');
+
+var _directoryTree2 = _interopRequireDefault(_directoryTree);
+
 var _fsExtra = require('fs-extra');
 
 var _fsExtra2 = _interopRequireDefault(_fsExtra);
@@ -14,9 +18,9 @@ var _path = require('path');
 
 var _path2 = _interopRequireDefault(_path);
 
-var _directoryTree = require('directory-tree');
+var _progress = require('progress');
 
-var _directoryTree2 = _interopRequireDefault(_directoryTree);
+var _progress2 = _interopRequireDefault(_progress);
 
 var _cli = require('./cli.js');
 
@@ -115,7 +119,7 @@ function recuseChildren(nodeTree, holdingArr) {
 
 function processFiles(manifestFile, config) {
     if (config.processType === 'UP') {
-        manifestFile.map(function (manifest) {
+        manifestFile.forEach(function (manifest) {
             var targetFilePath = _path2.default.resolve(_path2.default.join(config.outputDirectory, manifest.filePathConverted));
             if (config.ignoreList.includes(_path2.default.extname(manifest.fileName).slice(1))) {
                 // do not process file, just copy to output directory
@@ -130,9 +134,8 @@ function processFiles(manifestFile, config) {
     } else if (config.processType === 'DOWN') {
         var fileDelimiterPattern = new RegExp(config.fileDelimiter, 'g');
         var filePaths = parseManifest(manifestFile, config);
-        filePaths.map(function (fp) {
+        filePaths.forEach(function (fp) {
             var targetFilePath = _path2.default.join(_path2.default.resolve(config.outputDirectory), fp.filePath);
-
             _fsExtra2.default.ensureFileSync(targetFilePath);
             if (config.ignoreList.includes(_path2.default.extname(fp.fileName).slice(1))) {
                 // do not process file, just copy to output directory
@@ -167,8 +170,7 @@ function processFileForUp(filePath, config) {
                 for (var r in _replacers2.default) {
                     if (_replacers2.default.hasOwnProperty(r)) {
                         // remove character that can throw errors
-                        var re = new RegExp(r, 'ig');
-                        newData = newData.replace(re, _replacers2.default[r]);
+                        newData = newData.replace(_replacers2.default[r], r);
                     }
                 }
                 if (config['line-length']) {
@@ -207,8 +209,9 @@ function processFileForDown(filePath) {
             for (var r in _replacers2.default) {
                 if (_replacers2.default.hasOwnProperty(r)) {
                     // remove character that can throw errors
-                    var re = new RegExp(_replacers2.default[r], 'g');
-                    newData = newData.replace(re, r.replace(/\\/g, ''));
+                    var re = new RegExp(r, 'g');
+                    // console.log(replacers[r].source.replace(/\\/g, ''))
+                    newData = newData.replace(re, _replacers2.default[r].source.replace(/\\/g, ''));
 
                     // remove line breaks
                     newData = newData.replace(/__BACKSLASH_R_BACKSLASH_N__/g, '\r\n').replace(/__BACKSLASH_N__/g, '\n').replace(/__BACKSLASH_R__/g, '\r');

@@ -1,9 +1,10 @@
 import "babel-polyfill";
 
 import _ from 'lodash';
+import directoryTree from 'directory-tree';
 import fs from 'fs-extra';
 import path from 'path';
-import directoryTree from 'directory-tree';
+import ProgressBar from 'progress';
 
 import cliOptions from './cli.js';
 import replacers from './replacers.js';
@@ -92,13 +93,13 @@ function recuseChildren(nodeTree, holdingArr) {
 
 function processFiles(manifestFile, config) {
     if (config.processType === 'UP') {
-        manifestFile.map((manifest) => {
+        manifestFile.forEach((manifest) => {
             let targetFilePath = path.resolve(path.join(config.outputDirectory, manifest.filePathConverted));
             if(config.ignoreList.includes(path.extname(manifest.fileName).slice(1))){
                 // do not process file, just copy to output directory
                 let fromFilePath = path.resolve(path.join(config.targetDirectory, manifest.filePath));
                 fs.writeFileSync(targetFilePath, fs.readFileSync(fromFilePath));
-            } else { 
+            } else {
                 processFileForUp(path.resolve(path.join(config.targetDirectory, manifest.filePath)), config).then((data) => {
                     writeFile(targetFilePath, data);
                 });
@@ -107,9 +108,8 @@ function processFiles(manifestFile, config) {
     } else if (config.processType === 'DOWN') {
         let fileDelimiterPattern = new RegExp(config.fileDelimiter, 'g');
         let filePaths = parseManifest(manifestFile, config);
-        filePaths.map((fp) => {
+        filePaths.forEach((fp) => {
             let targetFilePath = path.join(path.resolve(config.outputDirectory), fp.filePath);
-
             fs.ensureFileSync(targetFilePath);
             if(config.ignoreList.includes(path.extname(fp.fileName).slice(1))){
                 // do not process file, just copy to output directory
@@ -139,16 +139,14 @@ function processFileForUp(filePath, config) {
                 reject(err);
             } else {
                 // remove line breaks
-                let newData = data
-                    .replace(/\r\n/g, '__BACKSLASH_R_BACKSLASH_N__')
+                let newData = data.replace(/\r\n/g, '__BACKSLASH_R_BACKSLASH_N__')
                     .replace(/\n/g, '__BACKSLASH_N__')
                     .replace(/\r/g, '__BACKSLASH_R__');
 
                 for (let r in replacers) {
                     if (replacers.hasOwnProperty(r)) {
                         // remove character that can throw errors
-                        let re = new RegExp(r, 'ig');
-                        newData = newData.replace(re, replacers[r]);
+                        newData = newData.replace(replacers[r], r);
                     }
                 }
                 if (config['line-length']) {
@@ -187,8 +185,9 @@ function processFileForDown(filePath) {
             for (let r in replacers) {
                 if (replacers.hasOwnProperty(r)) {
                     // remove character that can throw errors
-                    let re = new RegExp(replacers[r], 'g');
-                    newData = newData.replace(re, r.replace(/\\/g, ''));
+                    let re = new RegExp(r, 'g');
+                    // console.log(replacers[r].source.replace(/\\/g, ''))
+                    newData = newData.replace(re, replacers[r].source.replace(/\\/g, ''));
 
                     // remove line breaks
                     newData = newData
