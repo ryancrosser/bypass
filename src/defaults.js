@@ -3,8 +3,8 @@ export default {
     processType: false,
     targetDirectory: __dirname,
     outputDirectory: 'output',
-    'line-length': 100,
+    outputFile: 'bypass-file.txt',
     'clean-output-dir': true,
-    manifestFile: '_manifest.' + Date.now() + '.json',
-    fileDelimiter: '___'
+    manifestFile: `_manifest.${Date.now()}.json`,
+    fileDelimiter: '###FILE_DELIMITER###'.repeat(3)
 };
