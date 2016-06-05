@@ -12,7 +12,6 @@
     "bump:minor": "npm version minor --message \"Bumped to %s\"",
     "bump:patch": "npm version patch --message \"Bumped to %s\"",
     "commit": "git add . && git commit",
-    "postinstall": "[\"$NODE_ENV\" != production] && typings install",
     "lint": "esw src",
     "lint:watch": "npm run lint -- --watch"
   },
