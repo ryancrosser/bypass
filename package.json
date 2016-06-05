@@ -4,8 +4,17 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "up": "nodemon --exec babel-node src/index.js up --dir originals",
-    "down": "nodemon --exec babel-node src/index.js down --dir originals"
+    "prebuild": "rimraf dist & npm run lint",
+    "build": "npm run build:dir && npm run build:file",
+    "build:dir": "babel src --out-dir dist --ignore *.spec.js ",
+    "build:file": "mkdirp dist && babel src --out-file dist/bypass.compiled.js --ignore *.spec.js ",
+    "bump:major": "npm version major --message \"Bumped to %s\"",
+    "bump:minor": "npm version minor --message \"Bumped to %s\"",
+    "bump:patch": "npm version patch --message \"Bumped to %s\"",
+    "commit": "git add . && git commit",
+    "postinstall": "typings install",
+    "lint": "esw src",
+    "lint:watch": "npm run lint -- --watch"
   },
   "repository": {
     "type": "git",
@@ -20,7 +29,6 @@
   "devDependencies": {
     "babel-cli": "^6.9.0",
     "babel-core": "^6.9.0",
-    "babel-polyfill": "6.7.4",
     "babel-preset-es2015": "^6.9.0",
     "babel-preset-stage-1": "^6.5.0",
     "babel-register": "^6.9.0",
@@ -29,25 +37,18 @@
     "eslint-plugin-import": "^1.8.1",
     "eslint-plugin-jsx-a11y": "^1.2.3",
     "eslint-plugin-react": "^5.1.1",
-    "figlet": "^1.1.2",
-    "fs-extra": "0.26.7",
+    "eslint-watch": "2.1.11",
+    "mkdirp": "0.5.1",
     "mocha": "^2.5.3",
-    "nodemon": "^1.9.2",
-    "npm-run-all": "^2.1.1",
-    "rimraf": "2.5.2",
-    "typings": "^1.0.4",
-    "yargs": "4.3.2"
+    "typings": "^1.0.4"
   },
   "dependencies": {
     "async": "1.5.2",
     "babel-polyfill": "^6.7.4",
-    "del": "^2.2.0",
-    "directory-tree": "^0.1.1",
-    "install": "^0.6.1",
-    "lodash": "^4.8.2",
-    "minimist": "^1.2.0",
-    "npm": "^3.8.5",
-    "progress": "1.1.8",
-    "recursive-readdir": "1.3.0"
+    "colors": "1.1.2",
+    "del": "2.2.0",
+    "figlet": "^1.1.2",
+    "fs-extra": "0.26.7",
+    "minimist": "^1.2.0"
   }
 }

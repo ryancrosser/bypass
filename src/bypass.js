@@ -1,65 +1,228 @@
+import async from 'async';
+import 'babel-polyfill';
+import 'colors';
+import del from 'del';
 import fs from 'fs-extra';
-import path from 'path';
+import pathUtil from 'path';
+
 import cliOptions from './cli.js';
 import defaults from './defaults.js';
 
 class Bypass {
     constructor() {
         this.config = Object.assign({}, defaults, cliOptions);
-        console.log(this.config);
         this.process();
     }
 
-    up() {
-        this.walk(this.config.targetDirectory).then((files) => {
-            let textArr = [];
-            files.forEach((file) => {
-                if (this.config.ignoreList.includes(path.extname(file).slice(1))) {
-                    // do not process file, just copy to output directory
-                    let srcFilePath = path.resolve(path.join(this.config.targetDirectory, file));
-                    let destFilePath = path.resolve(path.join(this.config.outputDirectory, file));
-                    fs.copy(srcFilePath, destFilePath, (err) => {
-                        if (err) {
-                            throw Error(err);
-                        }
-                    });
+    process() {
+        if (this.config.help) {
+            fs.createReadStream(__dirname + '/help.txt').pipe(process.stdout);
+            return;
+        }
+
+        let promises = [];
+        Promise.all([this.createOutputDirectory(), this.emptyOutputDirectory()])
+            .then(() => {
+                if (this.config.processType === 'UP') {
+                    promises.push(this.up());
+                } else if (this.config.processType === 'DOWN') {
+                    promises.push(this.down());
                 } else {
-                    let text = `${this.config.fileDelimiter}\n`;
-                    text += `<FILEPATH>${file}</FILEPATH>\n`;
-                    text += fs.readFileSync(file);
-                    textArr.push(text);
+                    promises.push(Promise.reject('Invalid or missing process type. Use --help for information on how to use Bypass.'));
                 }
+
+                Promise.all(promises).then((msg) => {
+                    /* eslint-disable no-console */
+                    console.log();
+                    console.log(msg[0].green);
+                    console.log();
+                    /* eslint-enable no-console */
+                })
+                    .catch((err) => {
+                        /* eslint-disable no-console */
+                        console.log();
+                        console.log(err.red);
+                        console.log();
+                        /* eslint-enable no-console */
+                    });
             });
-            fs.writeFile(path.resolve(path.join(this.config.outputDirectory, this.config.outputFile)), textArr.join('\n\n\n'), (err) => {
-                if (err) {
-                    throw Error(err);
-                }
+    }
+
+    up() {
+        return new Promise((resolve, reject) => {
+            this.walkDirectory(this.config.targetDirectory).then((files) => {
+                let textArr = [];
+                async.each(files, (file, callback) => {
+                    let relativeFilePath = this.getRelativePath(file);
+                    if (this.config.ignoreList.includes(pathUtil.extname(file).slice(1))) {
+                        // do not process file, just copy to output directory
+                        this.copyFile(relativeFilePath);
+                    } else {
+                        textArr.push(this.buildText(file));
+                    }
+                    callback();
+                }, (err) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    let filepath = pathUtil.join(this.config.outputDirectory, this.config.outputFile);
+                    fs.writeFile(filepath, textArr.join(''), (writeErr) => {
+                        if (writeErr) {
+                            reject(writeErr);
+                        }
+                        resolve(`All files in target directory have been processed and are in ${this.config.outputFile}`);
+                    });
+                });
             });
         });
     }
 
     down() {
-
-    }
-
-    process() {
-        // create the output folder
-        fs.ensureDirSync(this.config.outputDirectory);
-
-        // empty output directory
-        if (this.config['clean-output-dir']) {
-            fs.emptyDirSync(path.resolve(this.config.outputDirectory));
-        }
-
-        if (this.config.processType === 'UP') {
-            this.up();
-        } else if (this.config.processType === 'DOWN') {
-            this.down();
-        }
-    }
-
-    walk(directory) {
         return new Promise((resolve, reject) => {
+            this.walkDirectory(this.config.targetDirectory).then((files) => {
+                let bypassFilePath = files.filter(file => file.includes(this.config.outputFile))[0];
+                let bypassFilePromise;
+                let copyFilePromise;
+                if (!bypassFilePath) {
+                    resolve(`No Bypass File found in target directory [${this.config.targetDirectory}].`);
+                } else {
+                    // remove bypass file from files array
+                    files.splice(files.indexOf(bypassFilePath), 1);
+
+                    bypassFilePromise = new Promise((bypassFileResolve, bypassFileReject) => {
+                        this.parseBypassFile(bypassFilePath).then((bypassFiles) => {
+                            bypassFiles.forEach((bf) => {
+                                let destFilepath = pathUtil.join(this.config.outputDirectory, bf.relativePath);
+                                fs.ensureFile(destFilepath, (err) => {
+                                    if (err) {
+                                        bypassFileReject(err);
+                                    }
+                                    fs.writeFile(destFilepath, bf.contents, (writeErr) => {
+                                        if (writeErr) {
+                                            bypassFileReject(writeErr);
+                                        }
+                                        bypassFileResolve(true);
+                                    });
+                                });
+                            });
+                        });
+                    });
+
+                    copyFilePromise = new Promise((copyFileResolve, copyFileReject) => {
+                        async.each(files, (file, callback) => {
+                            this.copyFile(this.getRelativePath(file)).then(() => {
+                                callback();
+                            });
+                        }, (err) => {
+                            if (err) {
+                                copyFileReject(err);
+                            }
+                            copyFileResolve(true);
+                        });
+                    });
+                }
+
+                Promise.all([bypassFilePromise, copyFilePromise])
+                    .then(() => {
+                        resolve(`All files in Bypass File [${this.config.outputFile}] and target directory have been processed and are in ${this.config.outputDirectory}`);
+                    })
+                    .catch((err) => {
+                        reject(err);
+                    });
+            });
+        });
+    }
+
+    parseBypassFile(bypassFilePath) {
+        let files = [];
+        const BYPASS_FILE_PATTERN = /<BYPASS-FILE>[\s\S]+?<\/BYPASS-FILE>/g;
+        return new Promise((resolve, reject) => {
+            fs.readFile(bypassFilePath, 'utf8', (err, data) => {
+                if (err) {
+                    reject(err);
+                }
+                let bypassFiles = [];
+                let match;
+                while ((match = BYPASS_FILE_PATTERN.exec(data)) !== null) {
+                    bypassFiles.push(match[0]);
+                    files.push({
+                        relativePath: this.parseRelativePath(match[0]),
+                        contents: this.parseFileContents(match[0])
+                    });
+                }
+                resolve(files);
+            });
+        });
+    }
+
+    parseRelativePath(bypassFile) {
+        const RELATIVE_FILEPATH_PATTERN = /<RELATIVE-FILEPATH>([\s\S]+?)<\/RELATIVE-FILEPATH>/;
+        let relativeFilepath = bypassFile.match(RELATIVE_FILEPATH_PATTERN);
+        return relativeFilepath[1];
+    }
+
+    parseFileContents(bypassFile) {
+        const BYPASS_FILE_CONTENTS_PATTERN = /<BYPASS-FILE-CONTENTS>([\s\S]+?)<\/BYPASS-FILE-CONTENTS>/;
+        let fileContents = bypassFile.match(BYPASS_FILE_CONTENTS_PATTERN);
+        return fileContents[1];
+    }
+
+    copyFile(relativeFilePath) {
+        return new Promise((resolve, reject) => {
+            let srcFilePath = pathUtil.join(this.config.targetDirectory, relativeFilePath);
+            let destFilePath = pathUtil.join(this.config.outputDirectory, relativeFilePath);
+            fs.copy(srcFilePath, destFilePath, (err) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve(destFilePath);
+            });
+        });
+    }
+
+    buildText(file) {
+        let text = '<BYPASS-FILE>';
+        text += `<RELATIVE-FILEPATH>${this.getRelativePath(file)}</RELATIVE-FILEPATH>`;
+        text += `<BYPASS-FILE-CONTENTS>${fs.readFileSync(file)}</BYPASS-FILE-CONTENTS>`;
+        text += '</BYPASS-FILE>';
+        return text;
+    }
+
+    getRelativePath(file) {
+        return file.replace(this.config.targetDirectory + pathUtil.sep, '');
+    }
+
+    createOutputDirectory() {
+        return new Promise((resolve, reject) => {
+            fs.ensureDir(this.config.outputDirectory, (err) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                resolve(this.config.outputDirectory);
+                this.config.outputDirectory = pathUtil.resolve(this.config.outputDirectory);
+            });
+        });
+    }
+
+    emptyOutputDirectory() {
+        return new Promise((resolve, reject) => {
+            if (this.config['clean-output-dir']) {
+                del([
+                    `${this.config.outputDirectory}/**`,
+                    `!${this.config.outputDirectory}`,
+                    `${this.config.outputDirectory}/**/*`
+                ]).then(() => {
+                    resolve(this.config.outputDirectory);
+                }).catch((err) => {
+                    reject(err);
+                });
+            }
+        });
+    }
+
+    walkDirectory(directory) {
+        return new Promise((resolve) => {
             let files = [];
             fs.walk(directory)
                 .on('data', (file) => {
@@ -75,213 +238,3 @@ class Bypass {
 }
 
 export default Bypass;
-
-
-// import "babel-polyfill";
-
-// import _ from 'lodash';
-// import directoryTree from 'directory-tree';
-// import fs from 'fs-extra';
-// import path from 'path';
-// import ProgressBar from 'progress';
-
-// import cliOptions from './cli.js';
-// import replacers from './replacers.js';
-// import defaults from './defaults.js';
-
-// let config = _.extend({}, defaults, cliOptions);
-
-// // create the output folder
-// fs.ensureDirSync(config.outputDirectory);
-
-// process(config);
-
-// function process() {
-//     let directory = directoryTree.directoryTree(config.targetDirectory);
-//     // empty output directory
-//     if (config['clean-output-dir']) {
-//         fs.emptyDirSync(path.resolve(config.outputDirectory));
-//     }
-//     let fileList = parseDirectory(directory);
-//     let manifest = buildManifest(fileList, config);
-
-//     if (config.processType === 'UP') {
-//         // write the directory tree to the output directory
-//         fs.writeFile(path.join(path.resolve(config.outputDirectory), config.manifestFile), JSON.stringify(manifest, null, 4), (err) => {
-//             if (err) {
-//                 throw Error(err);
-//             }
-//         });
-//     }
-
-//     processFiles(manifest, config);
-// }
-
-// function parseDirectory(directory) {
-//     let temp = [];
-//     let filePaths;
-//     if (directory.children && Array.isArray(directory.children)) {
-//         filePaths = recuseChildren(directory.children, temp);
-//     }
-//     return filePaths;
-// }
-
-// function buildManifest(filePaths, config) {
-//     let pathSeparatorPattern = new RegExp('\\' + path.sep, 'g');
-//     return filePaths.map((filePath) => {
-//         return {
-//             fileName: path.basename(filePath),
-//             filePath: filePath.slice(config.targetDirectory.length + 1),
-//             filePathConverted: filePath.slice(config.targetDirectory.length + 1).replace(pathSeparatorPattern, config.fileDelimiter)
-//         };
-//     });
-// }
-
-// function parseManifest(manifestFile, config) {
-//     let manifestPattern = new RegExp(/manifest\.\d{13}\.json/, '');
-//     if (!manifestPattern.test(config.manifestFile)) {
-//         manifestPattern = new RegExp(config.manifestFile);
-//     }
-//     let manifestFilePath = manifestFile.filter((manifest) => {
-//         return manifestPattern.test(manifest.fileName);
-//     });
-//     let targetFilePath = path.join(path.resolve(config.targetDirectory), manifestFilePath[0].fileName);
-
-//     let data = fs.readFileSync(targetFilePath, 'utf8');
-
-//     return JSON.parse(data).map((d) => {
-//         return {
-//             fileName: d.fileName,
-//             filePath: path.join(config.outputDirectory, d.filePath),
-//             filePathConverted: d.filePathConverted
-//         }
-//     });
-// }
-
-// function recuseChildren(nodeTree, holdingArr) {
-//     nodeTree.forEach((node) => {
-//         if (node.children) {
-//             return recuseChildren(node.children, holdingArr)
-//         } else {
-//             holdingArr.push(path.join(config.targetDirectory, node.path));
-//         }
-//     });
-
-//     return holdingArr;
-// }
-
-// function processFiles(manifestFile, config) {
-//     if (config.processType === 'UP') {
-//         manifestFile.forEach((manifest) => {
-//             let targetFilePath = path.resolve(path.join(config.outputDirectory, manifest.filePathConverted));
-//             if(config.ignoreList.includes(path.extname(manifest.fileName).slice(1))){
-//                 // do not process file, just copy to output directory
-//                 let fromFilePath = path.resolve(path.join(config.targetDirectory, manifest.filePath));
-//                 fs.writeFileSync(targetFilePath, fs.readFileSync(fromFilePath));
-//             } else {
-//                 processFileForUp(path.resolve(path.join(config.targetDirectory, manifest.filePath)), config).then((data) => {
-//                     writeFile(targetFilePath, data);
-//                 });
-//             }
-//         });
-//     } else if (config.processType === 'DOWN') {
-//         let fileDelimiterPattern = new RegExp(config.fileDelimiter, 'g');
-//         let filePaths = parseManifest(manifestFile, config);
-//         filePaths.forEach((fp) => {
-//             let targetFilePath = path.join(path.resolve(config.outputDirectory), fp.filePath);
-//             fs.ensureFileSync(targetFilePath);
-//             if(config.ignoreList.includes(path.extname(fp.fileName).slice(1))){
-//                 // do not process file, just copy to output directory
-//                 let fromFilePath = path.resolve(path.join(config.targetDirectory, fp.filePathConverted));
-//                 fs.writeFileSync(targetFilePath, fs.readFileSync(fromFilePath));
-//             } else {
-//                 processFileForDown(path.join(config.targetDirectory, fp.filePathConverted)).then((data) => {
-//                     writeFile(targetFilePath, data);
-//                 });
-//             }
-//         });
-//     }
-// }
-
-// function writeFile(filePath, fileContent) {
-//     fs.writeFile(filePath, fileContent, (err) => {
-//         if (err) {
-//             throw Error(err);
-//         }
-//     });
-// }
-
-// function processFileForUp(filePath, config) {
-//     return new Promise((resolve, reject) => {
-//         fs.readFile(filePath, 'utf8', (err, data) => {
-//             if (err) {
-//                 reject(err);
-//             } else {
-//                 // remove line breaks
-//                 let newData = data.replace(/\r\n/g, '__BACKSLASH_R_BACKSLASH_N__')
-//                     .replace(/\n/g, '__BACKSLASH_N__')
-//                     .replace(/\r/g, '__BACKSLASH_R__');
-
-//                 for (let r in replacers) {
-//                     if (replacers.hasOwnProperty(r)) {
-//                         // remove character that can throw errors
-//                         newData = newData.replace(replacers[r], r);
-//                     }
-//                 }
-//                 if (config['line-length']) {
-//                     newData = breakAtLineLength(newData, config['line-length']);
-//                 }
-
-//                 resolve(newData);
-//             }
-//         });
-//     });
-// }
-
-// function breakAtLineLength(file, lineLength) {
-//     let insertStr = '__GENERATED_LINE_BREAK__\n';
-//     let loopCount = 1;
-//     let start = 0;
-//     while (start < file.length) {
-//         let first = file.slice(0, start + lineLength);
-//         let last = file.slice(start + lineLength);
-
-//         file = first + insertStr + last;
-//         start = (lineLength * loopCount) + insertStr.length;
-//         loopCount++;
-//     }
-//     return file;
-// }
-
-// function processFileForDown(filePath) {
-//     return new Promise((resolve, reject) => {
-//         fs.readFile(filePath, 'utf8', (err, data) => {
-//             if (err) {
-//                 reject(err);
-//             }
-
-//             let newData = removeGeneratedLineBreak(data);
-//             for (let r in replacers) {
-//                 if (replacers.hasOwnProperty(r)) {
-//                     // remove character that can throw errors
-//                     let re = new RegExp(r, 'g');
-//                     // console.log(replacers[r].source.replace(/\\/g, ''))
-//                     newData = newData.replace(re, replacers[r].source.replace(/\\/g, ''));
-
-//                     // remove line breaks
-//                     newData = newData
-//                         .replace(/__BACKSLASH_R_BACKSLASH_N__/g, '\r\n')
-//                         .replace(/__BACKSLASH_N__/g, '\n')
-//                         .replace(/__BACKSLASH_R__/g, '\r');
-//                 }
-//             }
-
-//             resolve(newData);
-//         });
-//     });
-// }
-
-// function removeGeneratedLineBreak(file) {
-//     return file.replace(/__GENERATED_LINE_BREAK__\n/g, '');
-// }
-
