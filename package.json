@@ -15,6 +15,9 @@
     "lint": "esw src",
     "lint:watch": "npm run lint -- --watch"
   },
+  "bin": {
+    "bypass": ""
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ryancrosser/bypass.git"
