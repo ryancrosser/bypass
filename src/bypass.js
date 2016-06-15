@@ -15,37 +15,39 @@ class Bypass {
     }
 
     process() {
+        /* eslint-disable no-console */
         if (this.config.help) {
-            fs.createReadStream(__dirname + '/help.txt').pipe(process.stdout);
+            fs.createReadStream(`${__dirname}/help.txt`).pipe(process.stdout);
             return;
+        } else if (this.config.processType === 'UP' || this.config.processType === 'DOWN') {
+            let promises = [];
+            Promise.all([this.createOutputDirectory(), this.emptyOutputDirectory()])
+                .then(() => {
+                    if (this.config.processType === 'UP') {
+                        promises.push(this.up());
+                    } else if (this.config.processType === 'DOWN') {
+                        promises.push(this.down());
+                    } else {
+                        promises.push(Promise.reject());
+                    }
+
+                    Promise.all(promises).then((msg) => {
+                        console.log();
+                        console.log(msg[0].green);
+                        console.log();
+                    })
+                        .catch((err) => {
+                            console.log();
+                            console.log(err.red);
+                            console.log();
+                        });
+                });
+        } else {
+            console.log();
+            console.log('Invalid or missing process type. Use --help for information on how to use Bypass.'.red);
+            console.log();
         }
-
-        let promises = [];
-        Promise.all([this.createOutputDirectory(), this.emptyOutputDirectory()])
-            .then(() => {
-                if (this.config.processType === 'UP') {
-                    promises.push(this.up());
-                } else if (this.config.processType === 'DOWN') {
-                    promises.push(this.down());
-                } else {
-                    promises.push(Promise.reject('Invalid or missing process type. Use --help for information on how to use Bypass.'));
-                }
-
-                Promise.all(promises).then((msg) => {
-                    /* eslint-disable no-console */
-                    console.log();
-                    console.log(msg[0].green);
-                    console.log();
-                    /* eslint-enable no-console */
-                })
-                    .catch((err) => {
-                        /* eslint-disable no-console */
-                        console.log();
-                        console.log(err.red);
-                        console.log();
-                        /* eslint-enable no-console */
-                    });
-            });
+        /* eslint-enable no-console */
     }
 
     up() {
@@ -135,7 +137,7 @@ class Bypass {
 
     parseBypassFile(bypassFilePath) {
         let files = [];
-        const BYPASS_FILE_PATTERN = /<BYPASS-FILE>[\s\S]+?<\/BYPASS-FILE>/g;
+        const BYPASS_FILE_PATTERN = /<REPLACER-FILE>[\s\S]+?<\/REPLACER-FILE>/g;
         return new Promise((resolve, reject) => {
             fs.readFile(bypassFilePath, 'utf8', (err, data) => {
                 if (err) {
@@ -162,7 +164,7 @@ class Bypass {
     }
 
     parseFileContents(bypassFile) {
-        const BYPASS_FILE_CONTENTS_PATTERN = /<BYPASS-FILE-CONTENTS>([\s\S]+?)<\/BYPASS-FILE-CONTENTS>/;
+        const BYPASS_FILE_CONTENTS_PATTERN = /<REPLACER-FILE-CONTENTS>([\s\S]+?)<\/REPLACER-FILE-CONTENTS>/;
         let fileContents = bypassFile.match(BYPASS_FILE_CONTENTS_PATTERN);
         return fileContents[1];
     }
@@ -181,10 +183,10 @@ class Bypass {
     }
 
     buildText(file) {
-        let text = '<BYPASS-FILE>';
+        let text = '<REPLACER-FILE>';
         text += `<RELATIVE-FILEPATH>${this.getRelativePath(file)}</RELATIVE-FILEPATH>`;
-        text += `<BYPASS-FILE-CONTENTS>${fs.readFileSync(file)}</BYPASS-FILE-CONTENTS>`;
-        text += '</BYPASS-FILE>';
+        text += `<REPLACER-FILE-CONTENTS>${fs.readFileSync(file)}</REPLACER-FILE-CONTENTS>`;
+        text += '</REPLACER-FILE>';
         return text;
     }
 

@@ -6,8 +6,8 @@
   "scripts": {
     "prebuild": "rimraf dist & npm run lint",
     "build": "npm run build:dir && npm run build:file",
-    "build:dir": "babel src --out-dir dist --ignore *.spec.js ",
-    "build:file": "mkdirp dist && babel src --out-file dist/bypass.compiled.js --ignore *.spec.js ",
+    "build:dir": "babel src --copy-files --out-dir dist --ignore *.spec.js ",
+    "build:file": "mkdirp dist && babel src --copy-files --out-file dist/bypass.compiled.js --ignore *.spec.js ",
     "bump:major": "npm version major --message \"Bumped to %s\"",
     "bump:minor": "npm version minor --message \"Bumped to %s\"",
     "bump:patch": "npm version patch --message \"Bumped to %s\"",
