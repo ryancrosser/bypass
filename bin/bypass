@@ -3,5 +3,5 @@
 
 process.bin = process.title = 'bypass';
 
-require('../dist/index.js');
+require('../dist/bypass.compiled');
 
