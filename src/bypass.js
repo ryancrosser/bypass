@@ -51,6 +51,8 @@ class Bypass {
     }
 
     up() {
+        let FILE_SIZE_LIMIT = 5000000;
+
         return new Promise((resolve, reject) => {
             this.walkDirectory(this.config.targetDirectory).then((files) => {
                 let textArr = [];
@@ -68,6 +70,7 @@ class Bypass {
                         reject(err);
                     }
                     let filepath = pathUtil.join(this.config.outputDirectory, this.config.outputFile);
+
                     fs.writeFile(filepath, textArr.join(''), (writeErr) => {
                         if (writeErr) {
                             reject(writeErr);
@@ -209,7 +212,7 @@ class Bypass {
 
     emptyOutputDirectory() {
         return new Promise((resolve, reject) => {
-            if (this.config['clean-output-dir']) {
+            if (this.config['clean-output-dir'] === true) {
                 del([
                     `${this.config.outputDirectory}/**`,
                     `!${this.config.outputDirectory}`,
@@ -219,6 +222,8 @@ class Bypass {
                 }).catch((err) => {
                     reject(err);
                 });
+            } else {
+                resolve(this.config.outputDirectory);
             }
         });
     }

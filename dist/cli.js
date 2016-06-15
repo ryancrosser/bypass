@@ -35,7 +35,6 @@ if (argv._.includes('up') || argv._.includes('UP')) {
 if (argv.file) {
     cli.targetFile = _path2.default.resolve(argv.file);
 } else if (argv.dir) {
-    console.log(argv.dir);
     cli.targetDirectory = _path2.default.resolve(argv.dir);
 }
 

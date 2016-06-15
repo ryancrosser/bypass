@@ -100,6 +100,8 @@ var Bypass = function () {
         value: function up() {
             var _this2 = this;
 
+            var FILE_SIZE_LIMIT = 5000000;
+
             return new Promise(function (resolve, reject) {
                 _this2.walkDirectory(_this2.config.targetDirectory).then(function (files) {
                     var textArr = [];
@@ -117,6 +119,7 @@ var Bypass = function () {
                             reject(err);
                         }
                         var filepath = _path2.default.join(_this2.config.outputDirectory, _this2.config.outputFile);
+
                         _fsExtra2.default.writeFile(filepath, textArr.join(''), function (writeErr) {
                             if (writeErr) {
                                 reject(writeErr);
@@ -192,7 +195,7 @@ var Bypass = function () {
             var _this4 = this;
 
             var files = [];
-            var BYPASS_FILE_PATTERN = /<BYPASS-FILE>[\s\S]+?<\/BYPASS-FILE>/g;
+            var BYPASS_FILE_PATTERN = /<REPLACER-FILE>[\s\S]+?<\/REPLACER-FILE>/g;
             return new Promise(function (resolve, reject) {
                 _fsExtra2.default.readFile(bypassFilePath, 'utf8', function (err, data) {
                     if (err) {
@@ -221,7 +224,7 @@ var Bypass = function () {
     }, {
         key: 'parseFileContents',
         value: function parseFileContents(bypassFile) {
-            var BYPASS_FILE_CONTENTS_PATTERN = /<BYPASS-FILE-CONTENTS>([\s\S]+?)<\/BYPASS-FILE-CONTENTS>/;
+            var BYPASS_FILE_CONTENTS_PATTERN = /<REPLACER-FILE-CONTENTS>([\s\S]+?)<\/REPLACER-FILE-CONTENTS>/;
             var fileContents = bypassFile.match(BYPASS_FILE_CONTENTS_PATTERN);
             return fileContents[1];
         }
@@ -244,10 +247,10 @@ var Bypass = function () {
     }, {
         key: 'buildText',
         value: function buildText(file) {
-            var text = '<BYPASS-FILE>';
+            var text = '<REPLACER-FILE>';
             text += '<RELATIVE-FILEPATH>' + this.getRelativePath(file) + '</RELATIVE-FILEPATH>';
-            text += '<BYPASS-FILE-CONTENTS>' + _fsExtra2.default.readFileSync(file) + '</BYPASS-FILE-CONTENTS>';
-            text += '</BYPASS-FILE>';
+            text += '<REPLACER-FILE-CONTENTS>' + _fsExtra2.default.readFileSync(file) + '</REPLACER-FILE-CONTENTS>';
+            text += '</REPLACER-FILE>';
             return text;
         }
     }, {
@@ -277,12 +280,14 @@ var Bypass = function () {
             var _this7 = this;
 
             return new Promise(function (resolve, reject) {
-                if (_this7.config['clean-output-dir']) {
+                if (_this7.config['clean-output-dir'] === true) {
                     (0, _del2.default)([_this7.config.outputDirectory + '/**', '!' + _this7.config.outputDirectory, _this7.config.outputDirectory + '/**/*']).then(function () {
                         resolve(_this7.config.outputDirectory);
                     }).catch(function (err) {
                         reject(err);
                     });
+                } else {
+                    resolve(_this7.config.outputDirectory);
                 }
             });
         }
