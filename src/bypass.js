@@ -37,8 +37,9 @@ class Bypass {
                         console.log();
                     })
                         .catch((err) => {
+                            console.log('12121212', err);
                             console.log();
-                            console.log(err.red);
+                            console.log(err.message.red);
                             console.log();
                         });
                 });
@@ -51,14 +52,14 @@ class Bypass {
     }
 
     up() {
-        let FILE_SIZE_LIMIT = 5000000;
+        // let FILE_SIZE_LIMIT = 5000000;
 
         return new Promise((resolve, reject) => {
             this.walkDirectory(this.config.targetDirectory).then((files) => {
                 let textArr = [];
                 async.each(files, (file, callback) => {
                     let relativeFilePath = this.getRelativePath(file);
-                    if (this.config.ignoreList.includes(pathUtil.extname(file).slice(1))) {
+                    if (this.config.ignoreList.includes(pathUtil.extname(file).slice(1).toLowerCase())) {
                         // do not process file, just copy to output directory
                         this.copyFile(relativeFilePath);
                     } else {
@@ -71,11 +72,14 @@ class Bypass {
                     }
                     let filepath = pathUtil.join(this.config.outputDirectory, this.config.outputFile);
 
+                    console.log('done', filepath);
+
                     fs.writeFile(filepath, textArr.join(''), (writeErr) => {
                         if (writeErr) {
                             reject(writeErr);
+                        } else {
+                            resolve(`All files in target directory have been processed and are in ${this.config.outputFile}`);
                         }
-                        resolve(`All files in target directory have been processed and are in ${this.config.outputFile}`);
                     });
                 });
             });
@@ -229,6 +233,7 @@ class Bypass {
     }
 
     walkDirectory(directory) {
+        console.log('walkDirectory');
         return new Promise((resolve) => {
             let files = [];
             fs.walk(directory)

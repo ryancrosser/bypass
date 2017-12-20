@@ -23,6 +23,8 @@ to get the command.
 ```
 bypass [options] [--flags]
 
+Example: bypass up -d ./originals -o ./bypass-output
+
 Options:
   up    process bundle the directory or file for transfer
   down  unbundle the 'bypass-directory'

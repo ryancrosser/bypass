@@ -66,28 +66,27 @@ var Bypass = function () {
                 _fsExtra2.default.createReadStream(__dirname + '/help.txt').pipe(process.stdout);
                 return;
             } else if (this.config.processType === 'UP' || this.config.processType === 'DOWN') {
-                (function () {
-                    var promises = [];
-                    Promise.all([_this.createOutputDirectory(), _this.emptyOutputDirectory()]).then(function () {
-                        if (_this.config.processType === 'UP') {
-                            promises.push(_this.up());
-                        } else if (_this.config.processType === 'DOWN') {
-                            promises.push(_this.down());
-                        } else {
-                            promises.push(Promise.reject());
-                        }
+                var promises = [];
+                Promise.all([this.createOutputDirectory(), this.emptyOutputDirectory()]).then(function () {
+                    if (_this.config.processType === 'UP') {
+                        promises.push(_this.up());
+                    } else if (_this.config.processType === 'DOWN') {
+                        promises.push(_this.down());
+                    } else {
+                        promises.push(Promise.reject());
+                    }
 
-                        Promise.all(promises).then(function (msg) {
-                            console.log();
-                            console.log(msg[0].green);
-                            console.log();
-                        }).catch(function (err) {
-                            console.log();
-                            console.log(err.red);
-                            console.log();
-                        });
+                    Promise.all(promises).then(function (msg) {
+                        console.log();
+                        console.log(msg[0].green);
+                        console.log();
+                    }).catch(function (err) {
+                        console.log('12121212', err);
+                        console.log();
+                        console.log(err.message.red);
+                        console.log();
                     });
-                })();
+                });
             } else {
                 console.log();
                 console.log('Invalid or missing process type. Use --help for information on how to use Bypass.'.red);
@@ -100,14 +99,14 @@ var Bypass = function () {
         value: function up() {
             var _this2 = this;
 
-            var FILE_SIZE_LIMIT = 5000000;
+            // let FILE_SIZE_LIMIT = 5000000;
 
             return new Promise(function (resolve, reject) {
                 _this2.walkDirectory(_this2.config.targetDirectory).then(function (files) {
                     var textArr = [];
                     _async2.default.each(files, function (file, callback) {
                         var relativeFilePath = _this2.getRelativePath(file);
-                        if (_this2.config.ignoreList.includes(_path2.default.extname(file).slice(1))) {
+                        if (_this2.config.ignoreList.includes(_path2.default.extname(file).slice(1).toLowerCase())) {
                             // do not process file, just copy to output directory
                             _this2.copyFile(relativeFilePath);
                         } else {
@@ -120,11 +119,14 @@ var Bypass = function () {
                         }
                         var filepath = _path2.default.join(_this2.config.outputDirectory, _this2.config.outputFile);
 
+                        console.log('done', filepath);
+
                         _fsExtra2.default.writeFile(filepath, textArr.join(''), function (writeErr) {
                             if (writeErr) {
                                 reject(writeErr);
+                            } else {
+                                resolve('All files in target directory have been processed and are in ' + _this2.config.outputFile);
                             }
-                            resolve('All files in target directory have been processed and are in ' + _this2.config.outputFile);
                         });
                     });
                 });
@@ -294,6 +296,7 @@ var Bypass = function () {
     }, {
         key: 'walkDirectory',
         value: function walkDirectory(directory) {
+            console.log('walkDirectory');
             return new Promise(function (resolve) {
                 var files = [];
                 _fsExtra2.default.walk(directory).on('data', function (file) {
