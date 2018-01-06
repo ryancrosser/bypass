@@ -1,55 +1,58 @@
+import getopts from 'getopts';
 import path from 'path';
-import minimist from 'minimist';
 
-let argv = minimist(process.argv.slice(2), {
-    alias: {
-        c: 'clean-output-dir',
-        d: 'dir',
-        i: 'ignore-types',
-        f: 'format',
-        o: 'output',
-        n: 'output-file-name',
-        h: 'help'
-    }
-});
+import defaults from './defaults';
 
 const cli = {};
 
-if (argv._.includes('up') || argv._.includes('UP')) {
+const options = getopts(process.argv.slice(2), {
+    alias: {
+        c: 'clean-output-dir',
+        d: 'dir',
+        o: 'out',
+        n: 'output-file-name',
+        f: 'format',
+        i: 'ignore-list',
+        h: 'help'
+    },
+    default: defaults
+});
+
+if (options._.includes('up') || options._.includes('UP')) {
     cli.processType = 'UP';
-} else if (argv._.includes('down') || argv._.includes('DOWN')) {
+} else if (options._.includes('down') || options._.includes('DOWN')) {
     cli.processType = 'DOWN';
-} else if (argv._.includes('h') || argv._.includes('H') || argv._.includes('help') || argv._.includes('HELP')) {
+} else if (options._.includes('h') || options._.includes('H') || options._.includes('help') || options._.includes('HELP')) {
     cli.processType = 'HELP';
 }
 
-if (argv.file) {
-    cli.targetFile = path.resolve(argv.file);
-} else if (argv.dir) {
-    cli.targetDirectory = path.resolve(argv.dir);
+if (options.file) {
+    cli.targetFile = path.resolve(options.file);
+} else if (options.dir) {
+    cli.targetDirectory = path.resolve(options.dir);
 }
 
-if (argv.output) {
-    cli.outputDirectory = argv.output;
+if (options.output) {
+    cli.outputDirectory = options.output;
 }
 
-if (argv['clean-output-dir']) {
-    cli['clean-output-dir'] = argv['clean-output-dir'];
+if (options['clean-output-dir']) {
+    cli['clean-output-dir'] = options['clean-output-dir'];
 }
-if (argv['output-file-name']) {
-    cli.outputFile = argv['output-file-name'];
-}
-
-if (argv.format) {
-    cli.fileType = argv.format;
+if (options['output-file-name']) {
+    cli.outputFile = options['output-file-name'];
 }
 
-if (argv['ignore-types']) {
-    let ignoreList = argv['ignore-types'].split(',');
+if (options.format) {
+    cli.fileType = options.format;
+}
+
+if (options['ignore-types']) {
+    let ignoreList = options['ignore-types'].split(',');
     cli.ignoreList = ignoreList.map(type => type.trim());
 }
 
-if (argv.help) {
+if (options.help) {
     cli.help = true;
 }
 

@@ -9,8 +9,6 @@ import pathUtil from 'path';
 import cliOptions from './cli.js';
 import defaults from './defaults.js';
 
-// console.log('cli', cliOptions);
-
 class Bypass {
     constructor() {
         this.config = Object.assign({}, defaults, cliOptions);
