@@ -9,15 +9,11 @@
     "up1": "node ./src up -d original -o bypass-output",
     "down": "node ./src down -d bypass-output -o final",
     "prebuild": "rimraf dist & npm run lint",
-    "build": "npm run build:dir && npm run build:file",
-    "build:dir": "babel src --copy-files --out-dir dist --ignore *.spec.js ",
-    "build:file": "mkdirp dist && babel src --copy-files --out-file dist/bypass.compiled.js --ignore *.spec.js ",
     "bump:major": "npm version major --message \"Bumped to %s\"",
     "bump:minor": "npm version minor --message \"Bumped to %s\"",
     "bump:patch": "npm version patch --message \"Bumped to %s\"",
     "commit": "git add . && git commit",
-    "lint": "prettier --write \"src/**/*.js\"",
-    "lint:watch": "npm run lint -- --watch"
+    "lint": "prettier --write \"src/**/*.js\""
   },
   "bin": {
     "bypass": ""
