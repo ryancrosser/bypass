@@ -5,7 +5,7 @@ Options:
   up    process bundle the directory or file for transfer
   down  unbundle the 'bypass-directory'
   help  show help
-
+ 
 Flags:
 
   -d, --dir                 source directory [current directory]
