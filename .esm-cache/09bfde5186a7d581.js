@@ -1,13 +1,13 @@
-import async from 'async';
-import 'colors';
-import del from 'del';
-import fs from 'fs-extra';
-import mammoth from 'mammoth';
-import officegen from 'officegen';
-import path from 'path';
+let async;_86a‍.w('async',[["default",function(v){async=v}]]);_86a‍.w('colors');let del;_86a‍.w('del',[["default",function(v){del=v}]]);let fs;_86a‍.w('fs-extra',[["default",function(v){fs=v}]]);let mammoth;_86a‍.w('mammoth',[["default",function(v){mammoth=v}]]);let officegen;_86a‍.w('officegen',[["default",function(v){officegen=v}]]);let path;_86a‍.w('path',[["default",function(v){path=v}]]);let cliOptions;_86a‍.w('./cli.js',[["default",function(v){cliOptions=v}]]);let defaults;_86a‍.w('./defaults.js',[["default",function(v){defaults=v}]]);
 
-import cliOptions from './cli.js';
-import defaults from './defaults.js';
+
+
+
+
+
+
+
+
 
 // console.log('cli', cliOptions);
 
@@ -76,6 +76,9 @@ class Bypass {
                     } else {
                         chunks.push(textArr[i]);
                     }
+                    console.log(111, Buffer.byteLength(chunks[chunks.length - 1], 'utf8'));
+                    console.log(222, this.config.chunkSize * 10000000);
+                    console.log(333, chunks.length - 1);
                 }
                 console.log(chunks.length);
                 const promises = [];
@@ -369,4 +372,4 @@ class Bypass {
     }
 }
 
-export default Bypass;
+_86a‍.d(Bypass);

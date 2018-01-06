@@ -1,5 +1,5 @@
-import path from 'path';
-import minimist from 'minimist';
+let path;_cf4‍.w('path',[["default",function(v){path=v}]]);let minimist;_cf4‍.w('minimist',[["default",function(v){minimist=v}]]);
+
 
 let argv = minimist(process.argv.slice(2), {
     alias: {
@@ -53,4 +53,4 @@ if (argv.help) {
     cli.help = true;
 }
 
-export default cli;
+_cf4‍.d(cli);

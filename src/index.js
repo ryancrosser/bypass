@@ -1,3 +1,2 @@
-import Bypass from './bypass.js';
-
-let bypass = new Bypass();
+require('@std/esm');
+module.exports = require('./main.js').default;

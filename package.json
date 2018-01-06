@@ -1,56 +1,59 @@
 {
-  "name": "rc-bypass",
-  "version": "0.0.9",
-  "description": "",
-  "main": "dist/index.js",
-  "scripts": {
-    "prebuild": "rimraf dist & npm run lint",
-    "build": "npm run build:dir && npm run build:file",
-    "build:dir": "babel src --copy-files --out-dir dist --ignore *.spec.js ",
-    "build:file": "mkdirp dist && babel src --copy-files --out-file dist/bypass.compiled.js --ignore *.spec.js ",
-    "bump:major": "npm version major --message \"Bumped to %s\"",
-    "bump:minor": "npm version minor --message \"Bumped to %s\"",
-    "bump:patch": "npm version patch --message \"Bumped to %s\"",
-    "commit": "git add . && git commit",
-    "lint": "esw src",
-    "lint:watch": "npm run lint -- --watch"
-  },
-  "bin": {
-    "bypass": ""
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ryancrosser/bypass.git"
-  },
-  "author": "Ryan Crosser <ryankcrosser@gmail.com>",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/ryancrosser/bypass/issues"
-  },
-  "homepage": "https://github.com/ryancrosser/bypass#readme",
-  "devDependencies": {
-    "babel-cli": "^6.9.0",
-    "babel-core": "^6.9.0",
-    "babel-preset-es2015": "^6.9.0",
-    "babel-preset-stage-1": "^6.5.0",
-    "babel-register": "^6.9.0",
-    "eslint": "^2.11.1",
-    "eslint-config-airbnb": "^9.0.1",
-    "eslint-plugin-import": "^1.8.1",
-    "eslint-plugin-jsx-a11y": "^1.2.3",
-    "eslint-plugin-react": "^5.1.1",
-    "eslint-watch": "2.1.11",
-    "mkdirp": "0.5.1",
-    "mocha": "^2.5.3",
-    "typings": "^1.0.4"
-  },
-  "dependencies": {
-    "async": "1.5.2",
-    "babel-polyfill": "^6.7.4",
-    "colors": "1.1.2",
-    "del": "2.2.0",
-    "figlet": "^1.1.2",
-    "fs-extra": "0.26.7",
-    "minimist": "^1.2.0"
-  }
+    "name": "rc-bypass",
+    "version": "0.0.9",
+    "description": "",
+    "main": "dist/index.js",
+    "author": "Ryan Crosser <ryankcrosser@gmail.com>",
+    "scripts": {
+        "start": "node ./src",
+        "up1": "node ./src up -d original -o bypass-output",
+        "down": "node ./src down -d bypass-output -o final",
+        "prebuild": "rimraf dist & npm run lint",
+        "build": "npm run build:dir && npm run build:file",
+        "build:dir": "babel src --copy-files --out-dir dist --ignore *.spec.js ",
+        "build:file": "mkdirp dist && babel src --copy-files --out-file dist/bypass.compiled.js --ignore *.spec.js ",
+        "bump:major": "npm version major --message \"Bumped to %s\"",
+        "bump:minor": "npm version minor --message \"Bumped to %s\"",
+        "bump:patch": "npm version patch --message \"Bumped to %s\"",
+        "commit": "git add . && git commit",
+        "lint": "esw src",
+        "lint:watch": "npm run lint -- --watch"
+    },
+    "bin": {
+        "bypass": ""
+    },
+    "homepage": "https://github.com/ryancrosser/bypass#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/ryancrosser/bypass.git"
+    },
+    "bugs": {
+        "url": "https://github.com/ryancrosser/bypass/issues"
+    },
+    "license": "MIT",
+    "@std/esm": {
+        "esm": "js"
+    },
+    "dependencies": {
+        "@std/esm": "^0.1.1",
+        "async": "1.5.2",
+        "colors": "1.1.2",
+        "del": "2.2.0",
+        "figlet": "^1.1.2",
+        "fs-extra": "0.26.7",
+        "mammoth": "^1.4.2",
+        "minimist": "^1.2.0",
+        "officegen": "^0.4.5"
+    },
+    "devDependencies": {
+        "eslint": "^2.11.1",
+        "eslint-config-airbnb": "^9.0.1",
+        "eslint-plugin-import": "^1.8.1",
+        "eslint-plugin-jsx-a11y": "^1.2.3",
+        "eslint-plugin-react": "^5.1.1",
+        "eslint-watch": "2.1.11",
+        "mkdirp": "0.5.1",
+        "mocha": "^2.5.3",
+        "typings": "^1.0.4"
+    }
 }

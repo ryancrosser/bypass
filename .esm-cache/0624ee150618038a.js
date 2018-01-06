@@ -1,6 +1,6 @@
-import path from 'path';
+let path;_061‍.w('path',[["default",function(v){path=v}]]);
 
-export default {
+_061‍.d({
     ignoreList: ['DS_Store', 'jpeg', 'jpg', 'png', 'doc', 'docx', 'gif', 'zip', '7z', 'exe', 'app', 'tar', 'rar', 'gzip'],
     processType: false,
     targetDirectory: path.resolve(),
@@ -8,5 +8,5 @@ export default {
     outputFile: 'bypass-file',
     format: 'docx',
     'clean-output-dir': true,
-    chunkSize: 2 // 2 million bytes
-};
+    chunkSize: 2 // in mB
+});
