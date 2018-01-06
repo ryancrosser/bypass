@@ -4,7 +4,7 @@ import del from 'del';
 import fs from 'fs-extra';
 import mammoth from 'mammoth';
 import officegen from 'officegen';
-import path from 'path';
+import pathUtil from 'path';
 
 import cliOptions from './cli.js';
 import defaults from './defaults.js';
@@ -21,7 +21,7 @@ class Bypass {
     process() {
         /* eslint-disable no-console */
         if (this.config.help || this.config.processType === 'HELP') {
-            fs.createReadStream(`${path.resolve(path.dirname(''))}/src/help.txt`).pipe(process.stdout);
+            fs.createReadStream(`${pathUtil.resolve(pathUtil.dirname(''))}/src/help.txt`).pipe(process.stdout);
             return;
         } else if (this.config.processType === 'UP' || this.config.processType === 'DOWN') {
             let promises = [];
@@ -78,10 +78,10 @@ class Bypass {
                         chunks.push(textArr[i]);
                     }
                 }
-                console.log(chunks.length);
+
                 const promises = [];
                 chunks.forEach((chunk, i) => {
-                    let filepath = path.join(this.config.outputDirectory, `${this.config.outputFile}.p${i}.${this.config.format}`);
+                    let filepath = pathUtil.join(this.config.outputDirectory, `${this.config.outputFile}.p${i}.${this.config.format}`);
                     if (this.config.format.toUpperCase() === 'DOCX') {
                         promises.push(this.generateDocxOutput(filepath, chunk));
                     } else {
@@ -114,9 +114,11 @@ class Bypass {
 
                     bypassFilePromise = new Promise((bypassFileResolve, bypassFileReject) => {
                         this.parseBypassFiles(bypassFilesPath).then((bypassFiles) => {
-                            console.log(22222, bypassFilesPath);
-                            bypassFiles.forEach((bf) => {
-                                let destFilepath = path.join(this.config.outputDirectory, bf.relativePath);
+                            bypassFiles.forEach((bf, index) => {
+                                console.log(bf.relativePath);
+                            });
+                            bypassFiles.forEach((bf, index) => {
+                                let destFilepath = pathUtil.join(this.config.outputDirectory, bf.relativePath);
                                 fs.ensureFile(destFilepath, (err) => {
                                     if (err) {
                                         bypassFileReject(err);
@@ -162,16 +164,15 @@ class Bypass {
             const promises = [];
             bypassFilePaths.forEach(file => {
                 const ext = this.determineFileExtension(file);
-                if (ext.toUpperCase() === 'TXT') {
-                    promises.push(this.parseTextBypassFile(file));
-                } else if (ext.toUpperCase() === 'DOCX') {
+                if (ext.toUpperCase() === 'DOCX') {
                     promises.push(this.parseDocxBypassFile(file));
+                } else {
+                    promises.push(this.parseTextBypassFile(file));
                 }
             });
 
             Promise.all(promises).then((results) => {
-                console.log('33333', results);
-                resolve(results);
+                resolve(results[0]);
             }).catch(err => {
                 reject(err);
             });
@@ -206,7 +207,7 @@ class Bypass {
                 const content = result.value;
                 let match;
                 while ((match = BYPASS_FILE_PATTERN.exec(content)) !== null) {
-                    console.log('files', match);
+                    // console.log('files', match);
                     files.push({
                         relativePath: this.parseRelativePath(match[0]),
                         contents: this.parseFileContents(match[0])
@@ -233,8 +234,8 @@ class Bypass {
 
     copyFile(relativeFilePath) {
         return new Promise((resolve, reject) => {
-            let srcFilePath = path.join(this.config.targetDirectory, relativeFilePath);
-            let destFilePath = path.join(this.config.outputDirectory, relativeFilePath);
+            let srcFilePath = pathUtil.join(this.config.targetDirectory, relativeFilePath);
+            let destFilePath = pathUtil.join(this.config.outputDirectory, relativeFilePath);
 
             fs.copy(srcFilePath, destFilePath, (err) => {
                 if (err) {
@@ -254,7 +255,7 @@ class Bypass {
     }
 
     getRelativePath(file) {
-        return file.replace(this.config.targetDirectory + path.sep, '');
+        return file.replace(this.config.targetDirectory + pathUtil.sep, '');
     }
 
     createOutputDirectory() {
@@ -265,7 +266,7 @@ class Bypass {
                     return;
                 }
                 resolve(this.config.outputDirectory);
-                this.config.outputDirectory = path.resolve(this.config.outputDirectory);
+                this.config.outputDirectory = pathUtil.resolve(this.config.outputDirectory);
             });
         });
     }
@@ -289,7 +290,7 @@ class Bypass {
     }
 
     walkDirectory(directory) {
-        console.log('walkDirectory');
+        // console.log('walkDirectory');
         return new Promise((resolve) => {
             let files = [];
             fs.walk(directory)
@@ -305,7 +306,7 @@ class Bypass {
     }
 
     determineFileExtension(filePath) {
-        let ext = path.extname(filePath).slice(1);
+        let ext = pathUtil.extname(filePath).slice(1);
 
         if (ext) {
             return ext;
