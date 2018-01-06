@@ -41,8 +41,9 @@ class Bypass {
                         console.log();
                     })
                         .catch((err) => {
+                            console.log('12121212', err);
                             console.log();
-                            console.log(err.red);
+                            console.log(err.message.red);
                             console.log();
                         });
                 });
@@ -288,6 +289,7 @@ class Bypass {
     }
 
     walkDirectory(directory) {
+        console.log('walkDirectory');
         return new Promise((resolve) => {
             let files = [];
             fs.walk(directory)

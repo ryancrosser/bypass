@@ -1,11 +1,11 @@
 import path from 'path';
 
 export default {
-    ignoreList: ['DS_Store', 'jpeg', 'jpg', 'png', 'doc', 'docx', 'gif', 'zip', '7z', 'exe', 'app', 'tar', 'rar', 'gzip'],
+    ignoreList: ['7z', 'app', 'asar_', 'doc', 'docx', 'DS_Store', 'eot', 'exe', 'gif', 'gzip', 'ico', 'jpeg', 'jpg', 'otf', 'png', 'rar', 'sketch', 'tgz', 'ttf', 'woff', 'woff2', 'un~', 'zip'],
     processType: false,
     targetDirectory: path.resolve(),
     outputDirectory: 'bypass-output',
-    outputFile: 'bypass-file',
+    outputFile: 'bypass-file.txt',
     format: 'docx',
     'clean-output-dir': true,
     chunkSize: 2 // 2 million bytes

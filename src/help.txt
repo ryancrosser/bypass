@@ -17,6 +17,10 @@ Flags:
                             options are txt and docx [txt]                          
   -i, --ignore-list         list of file extensions that will copied to the
                             bypass-file, typically non-text files
-                            [jpeg, jpg, png, doc, docx, gif]
+                            ['exe', 'ico', 'jpeg', 'jpg', 'png', 'doc', 'docx', 'gif',
+                             'asar_', 'sketch', 'tar', 'tgz', 'un~', 'zip']
   -c, --clean-output-dir    whether or not to clean the output directory before
                             processing [true]
+  -h, --help                show help
+
+Example: ./node_modules/.bin/babel-node ./src/index.js up -d originals/
