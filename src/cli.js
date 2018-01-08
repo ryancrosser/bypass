@@ -9,7 +9,8 @@ const options = getopts(process.argv.slice(2), {
   alias: {
     c: 'clean-output-dir',
     d: 'dir',
-    o: 'out',
+    o: 'output',
+    out: 'output',
     n: 'output-file-name',
     f: 'format',
     i: 'ignore-list',
@@ -59,6 +60,9 @@ if (options['ignore-types']) {
 
 if (options.help) {
   cli.help = true;
+}
+if (options.debug) {
+  cli.debug = true;
 }
 
 export default cli;

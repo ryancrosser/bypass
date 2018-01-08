@@ -30,6 +30,7 @@ export default {
   targetDirectory: path.resolve(),
   outputDirectory: 'bypass-output',
   outputFile: 'bypass-file.txt',
+  debug: false,
   format: 'docx',
   'clean-output-dir': true,
   chunkSize: 2 // 2 million bytes

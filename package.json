@@ -8,6 +8,8 @@
     "start": "node ./src",
     "up1": "node ./src up -d original -o bypass-output",
     "down": "node ./src down -d bypass-output -o final",
+    "up1:debug": "node ./src up -d original -o bypass-output --debug",
+    "down:debug": "node ./src down -d bypass-output -o final --debug",
     "prebuild": "rimraf dist & npm run lint",
     "bump:major": "npm version major --message \"Bumped to %s\"",
     "bump:minor": "npm version minor --message \"Bumped to %s\"",
@@ -37,6 +39,7 @@
     "del": "2.2.0",
     "fs-extra": "0.26.7",
     "getopts": "^2.0.0",
+    "isbinaryfile": "^3.0.2",
     "mammoth": "^1.4.2",
     "officegen": "^0.4.5"
   },

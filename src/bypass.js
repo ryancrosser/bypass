@@ -1,7 +1,8 @@
 import async from 'async';
-import 'colors';
+import colors from 'colors/safe';
 import del from 'del';
 import fs from 'fs-extra';
+import isBinaryFile from 'isbinaryfile';
 import mammoth from 'mammoth';
 import officegen from 'officegen';
 import pathUtil from 'path';
@@ -12,7 +13,17 @@ import defaults from './defaults.js';
 class Bypass {
   constructor() {
     this.config = Object.assign({}, defaults, cliOptions);
-    console.log(this.config);
+
+    if (this.config.debug) {
+      this.debugProperties = {};
+      this.debugProperties.extensions = new Set();
+      console.log(
+        `${colors.underline.yellow('CLI Arguments:')} \n${colors.yellow(
+          JSON.stringify(cliOptions, null, 2)
+        )}`
+      );
+    }
+
     this.process();
   }
 
@@ -37,20 +48,21 @@ class Bypass {
         Promise.all(promises)
           .then(msg => {
             console.log();
-            console.log(msg[0].green);
+            console.log(colors.green(msg[0]));
             console.log();
           })
           .catch(err => {
-            console.log('12121212', err);
             console.log();
-            console.log(err.message.red);
+            console.log(colors.red(err.message));
             console.log();
           });
       });
     } else {
       console.log();
       console.log(
-        'Invalid or missing process type. Use --help for information on how to use Bypass.'.red
+        colors.red(
+          'Invalid or missing process type. Use --help for information on how to use Bypass.'
+        )
       );
       console.log();
     }
@@ -64,13 +76,18 @@ class Bypass {
 
         files.forEach(file => {
           let relativeFilePath = this.getRelativePath(file);
-          if (this.config.ignoreList.includes(this.determineFileExtension(file))) {
+          const extension = this.determineFileExtension(file);
+          if (this.config.debug) {
+            this.debugProperties.extensions.add(extension);
+          }
+
+          if (!isBinaryFile.sync(file) || this.config.ignoreList.includes(extension)) {
             // do not process file, just copy to output directory
             this.copyFile(relativeFilePath);
           } else {
             textArr.push(this.buildText(file));
           }
-        });
+        }, this);
         let chunks = [textArr[0]];
 
         for (let i = 1, len = textArr.length; i < len; i++) {
@@ -98,6 +115,25 @@ class Bypass {
         });
 
         Promise.all(promises).then(() => {
+          if (this.config.debug) {
+            console.log(
+              `${colors.underline.yellow('Processed File Extensions:')} \n ${colors.yellow(
+                JSON.stringify(
+                  Array.from(this.debugProperties.extensions).sort((a, b) => {
+                    if (a.toUpperCase() < b.toUpperCase()) {
+                      return -1;
+                    } else if (a.toUpperCase() > b.toUpperCase()) {
+                      return 1;
+                    } else {
+                      return 0;
+                    }
+                  }),
+                  null,
+                  2
+                )
+              )}`
+            );
+          }
           resolve(
             `All files in target directory have been processed and are in ${
               this.config.outputDirectory
@@ -126,10 +162,7 @@ class Bypass {
 
           bypassFilePromise = new Promise((bypassFileResolve, bypassFileReject) => {
             this.parseBypassFiles(bypassFilesPath).then(bypassFiles => {
-              bypassFiles.forEach((bf, index) => {
-                console.log(bf.relativePath);
-              });
-              bypassFiles.forEach((bf, index) => {
+              bypassFiles.forEach(bf => {
                 let destFilepath = pathUtil.join(this.config.outputDirectory, bf.relativePath);
                 fs.ensureFile(destFilepath, err => {
                   if (err) {
@@ -231,7 +264,6 @@ class Bypass {
           const content = result.value;
           let match;
           while ((match = BYPASS_FILE_PATTERN.exec(content)) !== null) {
-            // console.log('files', match);
             files.push({
               relativePath: this.parseRelativePath(match[0]),
               contents: this.parseFileContents(match[0])
@@ -317,7 +349,6 @@ class Bypass {
   }
 
   walkDirectory(directory) {
-    // console.log('walkDirectory');
     return new Promise(resolve => {
       let files = [];
       fs

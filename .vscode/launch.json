@@ -1,0 +1,62 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "up",
+            "program": "${workspaceFolder}/src/index.js",
+            "args": [
+                "up",
+                "-d",
+                "original",
+                "-o",
+                "bypass-output"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "down",
+            "program": "${workspaceFolder}/src/index.js",
+            "args": [
+                "down",
+                "-d",
+                "bypass-output",
+                "-o",
+                "final"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "up:debug",
+            "program": "${workspaceFolder}/src/index.js",
+            "args": [
+                "up",
+                "-d",
+                "original",
+                "-o",
+                "bypass-output",
+                "-debug"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "down:debug",
+            "program": "${workspaceFolder}/src/index.js",
+            "args": [
+                "down",
+                "-d",
+                "bypass-output",
+                "-o",
+                "final",
+                "-debug"
+            ]
+        }
+    ]
+}
