@@ -31,7 +31,7 @@ export default {
   outputDirectory: 'bypass-output',
   outputFile: 'bypass-file.txt',
   debug: false,
-  format: 'docx',
+  format: 'txt',
   'clean-output-dir': true,
   chunkSize: 2 // 2 million bytes
 };

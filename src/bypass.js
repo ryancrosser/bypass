@@ -3,6 +3,7 @@ import colors from 'colors/safe';
 import del from 'del';
 import fs from 'fs-extra';
 import isBinaryFile from 'isbinaryfile';
+import klaw from 'klaw';
 import mammoth from 'mammoth';
 import officegen from 'officegen';
 import pathUtil from 'path';
@@ -27,44 +28,29 @@ class Bypass {
     this.process();
   }
 
-  process() {
+  async process() {
     /* eslint-disable no-console */
     if (this.config.help || this.config.processType === 'HELP') {
-      fs
-        .createReadStream(`${pathUtil.resolve(pathUtil.dirname(''))}/src/help.txt`)
-        .pipe(process.stdout);
-      return;
+      return this.showHelpMessage();
     } else if (this.config.processType === 'UP' || this.config.processType === 'DOWN') {
-      let promises = [];
-      Promise.all([this.createOutputDirectory(), this.emptyOutputDirectory()]).then(() => {
+      try{
+        await this.createOutputDirectory();
+        await this.emptyOutputDirectory();
+
+        let message;
         if (this.config.processType === 'UP') {
-          promises.push(this.up());
+          message = await this.up();
         } else if (this.config.processType === 'DOWN') {
-          promises.push(this.down());
+          message = await this.down();
         } else {
           promises.push(Promise.reject());
         }
-
-        Promise.all(promises)
-          .then(msg => {
-            console.log();
-            console.log(colors.green(msg[0]));
-            console.log();
-          })
-          .catch(err => {
-            console.log();
-            console.log(colors.red(err.message));
-            console.log();
-          });
-      });
+        this.outputMessage(message, 'green');
+      } catch (err) {
+        this.outputMessage(err.message, 'red');
+      }
     } else {
-      console.log();
-      console.log(
-        colors.red(
-          'Invalid or missing process type. Use --help for information on how to use Bypass.'
-        )
-      );
-      console.log();
+      this.outputMessage('Invalid or missing process type. Use --help for information on how to use Bypass.', 'red');
     }
     /* eslint-enable no-console */
   }
@@ -80,14 +66,14 @@ class Bypass {
           if (this.config.debug) {
             this.debugProperties.extensions.add(extension);
           }
-
-          if (!isBinaryFile.sync(file) || this.config.ignoreList.includes(extension)) {
+          if (isBinaryFile.sync(file) || this.config.ignoreList.includes(extension)) {
             // do not process file, just copy to output directory
             this.copyFile(relativeFilePath);
           } else {
             textArr.push(this.buildText(file));
           }
-        }, this);
+        });
+
         let chunks = [textArr[0]];
 
         for (let i = 1, len = textArr.length; i < len; i++) {
@@ -351,8 +337,7 @@ class Bypass {
   walkDirectory(directory) {
     return new Promise(resolve => {
       let files = [];
-      fs
-        .walk(directory)
+      klaw(directory)
         .on('data', file => {
           if (file.stats.isFile()) {
             files.push(file.path);
@@ -431,6 +416,17 @@ class Bypass {
         }
       );
     });
+  }
+  showHelpMessage() {
+    return fs
+      .createReadStream(`${pathUtil.resolve(pathUtil.dirname(''))}/src/help.txt`)
+      .pipe(process.stdout);
+  }
+
+  outputMessage(message, color) {
+    console.log();
+    console.log(colors[color](message));
+    console.log();
   }
 }
 
